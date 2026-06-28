@@ -25,7 +25,8 @@
       "address": "0x7b798419f963a253bd3e83d7ed8ca33090c3b890",
       "name": "Wrapped VEX",
       "symbol": "WVEX",
-      "decimals": 18
+      "decimals": 18,
+      "logoURI": "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/0x7b798419f963a253bd3e83d7ed8ca33090c3b890.png"
     }
   ]
 }
