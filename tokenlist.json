@@ -1,0 +1,16 @@
+{
+  "name": "VEX EVM Token List",
+  "version": { "major": 1, "minor": 0, "patch": 0 },
+  "timestamp": "2026-06-28T00:00:00.000Z",
+  "keywords": ["vex", "evm", "defi"],
+  "tokens": [
+    {
+      "chainId": 6736,
+      "address": "0xdab5ae370e584d416e38274a55ae764ea4eac8b7",
+      "name": "NodeSpark",
+      "symbol": "SPARK",
+      "decimals": 18,
+      "logoURI": "https://raw.githubusercontent.com/YudaAdiPratama/vex-evm-tokenlist/main/assets/0xdab5ae370e584d416e38274a55ae764ea4eac8b7.png"
+    }
+  ]
+}
