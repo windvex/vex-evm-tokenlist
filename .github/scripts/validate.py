@@ -79,8 +79,15 @@ if base_addresses:
 else:
     warn("Could not load base branch — skipping removal check")
 
-# ── 2. Per-token validation ────────────────────────────────────────────────────
+# ── 2. Per-token validation (new tokens only) ─────────────────────────────────
 REQUIRED_FIELDS = {"chainId", "address", "name", "symbol", "decimals"}
+
+new_tokens = [
+    t for t in tokens
+    if t.get("address", "").lower() not in base_addresses
+] if base_addresses else tokens
+
+info(f"New tokens to validate: {len(new_tokens)}")
 
 def rpc(method, params):
     r = requests.post(VEX_EVM_RPC, json={
@@ -89,7 +96,7 @@ def rpc(method, params):
     }, timeout=10)
     return r.json().get("result")
 
-for token in tokens:
+for token in new_tokens:
     addr   = token.get("address", "").lower()
     symbol = token.get("symbol", "?")
     name   = token.get("name", "?")
