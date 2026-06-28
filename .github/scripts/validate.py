@@ -80,7 +80,7 @@ else:
     warn("Could not load base branch — skipping removal check")
 
 # ── 2. Per-token validation ────────────────────────────────────────────────────
-REQUIRED_FIELDS = {"chainId", "address", "name", "symbol", "decimals", "logoURI"}
+REQUIRED_FIELDS = {"chainId", "address", "name", "symbol", "decimals"}
 
 def rpc(method, params):
     r = requests.post(VEX_EVM_RPC, json={
@@ -203,19 +203,18 @@ for token in tokens:
         except Exception as e:
             fail(f"{label}: Cannot read logo image: {e}")
 
-    # logoURI must point to this repo (no IPFS, no external links)
+    # Logo file must exist in assets/ — logoURI is auto-generated on merge
+    logo_path = f"assets/{addr}.png"
     GITHUB_BASE = "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/"
     logo_uri = token.get("logoURI", "")
-    expected_uri = f"{GITHUB_BASE}{addr}.png"
-    if not logo_uri.startswith(GITHUB_BASE):
-        fail(f"{label}: logoURI must be a GitHub raw URL from this repo.\n"
-             f"  Expected: `{expected_uri}`\n"
-             f"  Got: `{logo_uri}`\n"
-             f"  External links (IPFS, HTTP, etc.) are not allowed.")
-    elif logo_uri != expected_uri:
-        warn(f"{label}: logoURI should be `{expected_uri}`")
+    if not os.path.exists(logo_path):
+        fail(f"{label}: Logo file not found at `{logo_path}` — please upload your logo as `assets/{addr}.png` (256×256 PNG, max 50KB)")
     else:
-        ok(f"{label}: logoURI format correct")
+        ok(f"{label}: Logo file `{logo_path}` exists")
+        if logo_uri and not logo_uri.startswith(GITHUB_BASE):
+            fail(f"{label}: `logoURI` must use this repo's GitHub raw URL or be left empty (auto-generated on merge).\n"
+                 f"  External links (IPFS, HTTP, etc.) are not allowed.\n"
+                 f"  Leave `logoURI` empty — it will be set automatically after merge.")
 
 # ── 3. Write result ────────────────────────────────────────────────────────────
 def write_result():
