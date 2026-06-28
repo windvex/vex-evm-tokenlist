@@ -14,6 +14,15 @@
   "tokens": [
     {
       "chainId": 6736,
+      "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "name": "VEX",
+      "symbol": "VEX",
+      "decimals": 18,
+      "isNative": true,
+      "logoURI": "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.png"
+    },
+    {
+      "chainId": 6736,
       "address": "0xdab5ae370e584d416e38274a55ae764ea4eac8b7",
       "name": "NodeSpark",
       "symbol": "SPARK",
