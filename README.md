@@ -48,12 +48,14 @@ Add a new entry inside the `"tokens"` array:
   "address": "0xabcd...1234",
   "name": "Your Token Full Name",
   "symbol": "SYM",
-  "decimals": 18,
-  "logoURI": "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/0xabcd...1234.png"
+  "decimals": 18
 }
 ```
 
-> The address in both `"address"` and `"logoURI"` must be **all lowercase**.
+> **Do not add `logoURI`** — it will be set automatically after your PR is merged.
+> If you include `logoURI`, the validation will fail.
+
+> The `address` must be **all lowercase**.
 
 ### Step 4 — Submit a Pull Request
 
