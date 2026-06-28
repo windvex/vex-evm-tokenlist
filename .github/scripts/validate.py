@@ -204,7 +204,7 @@ for token in tokens:
             fail(f"{label}: Cannot read logo image: {e}")
 
     # logoURI must match expected pattern
-    expected_uri = f"https://raw.githubusercontent.com/YudaAdiPratama/vex-evm-tokenlist/main/assets/{addr}.png"
+    expected_uri = f"https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/{addr}.png"
     if token["logoURI"] != expected_uri:
         warn(f"{label}: logoURI should be:\n  `{expected_uri}`")
     else:

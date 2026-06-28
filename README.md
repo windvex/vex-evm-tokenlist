@@ -4,7 +4,7 @@ Official token list for VEX EVM (Chain ID: 6736). Compatible with Uniswap token 
 
 **Token List URL:**
 ```
-https://raw.githubusercontent.com/YudaAdiPratama/vex-evm-tokenlist/main/tokenlist.json
+https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/tokenlist.json
 ```
 
 ## Submit a Token
@@ -34,7 +34,7 @@ https://raw.githubusercontent.com/YudaAdiPratama/vex-evm-tokenlist/main/tokenlis
   "name": "Token Full Name",
   "symbol": "SYM",
   "decimals": 18,
-  "logoURI": "https://raw.githubusercontent.com/YudaAdiPratama/vex-evm-tokenlist/main/assets/0xyourtokenaddress.png"
+  "logoURI": "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/0xyourtokenaddress.png"
 }
 ```
 
