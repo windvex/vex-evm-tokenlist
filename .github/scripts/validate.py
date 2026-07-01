@@ -7,7 +7,7 @@ Runs on every PR that touches tokenlist.json or assets/
 import json
 import os
 import sys
-import time
+import subprocess
 import requests
 from PIL import Image
 
@@ -18,6 +18,8 @@ MIN_LIQUIDITY = 500   # minimum VEX in pool
 MIN_AGE_DAYS  = 7
 MAX_LOGO_KB   = 50
 LOGO_SIZE     = 256
+GITHUB_BASE   = "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/"
+WVEX          = "0x7b798419f963a253bd3e83d7ed8ca33090c3b890"
 
 results = []
 failed  = False
@@ -30,9 +32,23 @@ def fail(msg):
 def warn(msg): results.append(f"⚠️ {msg}")
 def info(msg): results.append(f"ℹ️ {msg}")
 
-# ── 0. Load base branch tokenlist (detect removed tokens) ─────────────────────
-import subprocess
+def write_result():
+    summary = "### ✅ All checks passed — ready for review" if not failed else \
+              "### ❌ Validation failed — please fix the issues above"
+    output = "\n".join(results) + f"\n\n---\n{summary}"
+    print(output)
+    with open("/tmp/validation_result.txt", "w") as f:
+        f.write(output)
+    return 1 if failed else 0
 
+def rpc(method, params):
+    r = requests.post(VEX_EVM_RPC, json={
+        "jsonrpc": "2.0", "id": 1,
+        "method": method, "params": params
+    }, timeout=10)
+    return r.json().get("result")
+
+# ── 0. Load base branch tokenlist (detect removed tokens) ─────────────────────
 def load_base_tokenlist():
     try:
         out = subprocess.check_output(
@@ -89,13 +105,6 @@ new_tokens = [
 
 info(f"New tokens to validate: {len(new_tokens)}")
 
-def rpc(method, params):
-    r = requests.post(VEX_EVM_RPC, json={
-        "jsonrpc": "2.0", "id": 1,
-        "method": method, "params": params
-    }, timeout=10)
-    return r.json().get("result")
-
 for token in new_tokens:
     addr   = token.get("address", "").lower()
     symbol = token.get("symbol", "?")
@@ -117,17 +126,20 @@ for token in new_tokens:
     else:
         ok(f"{label}: chainId = {CHAIN_ID}")
 
-    # Address format
+    # Address format + must be lowercase
     if not addr.startswith("0x") or len(addr) != 42:
         fail(f"{label}: Invalid address format")
+    elif token.get("address") != addr:
+        fail(f"{label}: Address must be all lowercase")
     else:
-        ok(f"{label}: Address format valid")
+        ok(f"{label}: Address format valid (lowercase)")
 
     # Contract exists on-chain
     try:
         code = rpc("eth_getCode", [addr, "latest"])
         if not code or code == "0x" or code == "0x0":
             fail(f"{label}: No contract code at address — not deployed on VEX EVM")
+            continue
         else:
             ok(f"{label}: Contract code found on VEX EVM")
     except Exception as e:
@@ -135,16 +147,12 @@ for token in new_tokens:
 
     # Contract age via deploy block
     try:
-        # Get earliest tx involving this address
         resp = requests.get(
             f"{SWAP_API.replace('/swap', '')}/evm/token/{addr}",
             timeout=10
         ).json()
         deploy_block = resp.get("deploy_block", 0)
         if deploy_block:
-            # Estimate block time: VEX EVM ~0.5s per block
-            age_seconds = deploy_block * 0.5  # rough
-            # Better: get current block
             cur_block_hex = rpc("eth_blockNumber", [])
             cur_block = int(cur_block_hex, 16) if cur_block_hex else 0
             age_blocks = cur_block - deploy_block
@@ -153,6 +161,8 @@ for token in new_tokens:
                 fail(f"{label}: Contract age {age_days:.1f}d < {MIN_AGE_DAYS}d minimum")
             else:
                 ok(f"{label}: Contract age {age_days:.1f}d ≥ {MIN_AGE_DAYS}d")
+        else:
+            warn(f"{label}: Could not determine contract age — deploy_block not found")
     except Exception as e:
         warn(f"{label}: Could not check contract age: {e}")
 
@@ -161,20 +171,19 @@ for token in new_tokens:
         pairs = requests.get(f"{SWAP_API}/pairs", timeout=10).json()
         token_pairs = [
             p for p in pairs.get("pairs", [])
-            if addr in (p.get("token0","").lower(), p.get("token1","").lower())
+            if addr in (p.get("token0", "").lower(), p.get("token1", "").lower())
         ]
         if not token_pairs:
             fail(f"{label}: No liquidity pool found on SPARK Swap")
         else:
-            # Check max reserve in VEX terms (token paired with WVEX)
-            wvex = "0x7b798419f963a253bd3e83d7ed8ca33090c3b890"
             total_vex = 0
             for p in token_pairs:
-                if wvex in (p.get("token0","").lower(), p.get("token1","").lower()):
+                t0 = p.get("token0", "").lower()
+                t1 = p.get("token1", "").lower()
+                if WVEX in (t0, t1):
                     r0 = int(p.get("reserve0", 0) or 0)
                     r1 = int(p.get("reserve1", 0) or 0)
-                    # whichever side is WVEX
-                    vex_res = r1 if p.get("token0","").lower() == wvex else r0
+                    vex_res = r0 if t0 == WVEX else r1
                     total_vex += vex_res / 1e18
             if total_vex < MIN_LIQUIDITY:
                 fail(f"{label}: Liquidity {total_vex:.1f} VEX < {MIN_LIQUIDITY} VEX minimum")
@@ -183,19 +192,23 @@ for token in new_tokens:
     except Exception as e:
         warn(f"{label}: Could not check liquidity: {e}")
 
-    # Logo: must exist in assets/ directory
+    # logoURI must not be set in PR (auto-generated on merge)
+    logo_uri = token.get("logoURI", "")
+    if logo_uri and not logo_uri.startswith(GITHUB_BASE):
+        fail(f"{label}: Remove `logoURI` from your entry — external links not allowed. "
+             f"It will be set automatically after merge.")
+
+    # Logo file check (size, dimensions, format)
     logo_path = f"assets/{addr}.png"
     if not os.path.exists(logo_path):
-        fail(f"{label}: Logo not found at {logo_path}")
+        fail(f"{label}: Logo not found at `{logo_path}` — upload a 256×256 PNG, max 50KB")
     else:
-        # Size check
         size_kb = os.path.getsize(logo_path) / 1024
         if size_kb > MAX_LOGO_KB:
             fail(f"{label}: Logo {size_kb:.1f}KB > {MAX_LOGO_KB}KB limit")
         else:
             ok(f"{label}: Logo size {size_kb:.1f}KB ≤ {MAX_LOGO_KB}KB")
 
-        # Dimension check
         try:
             img = Image.open(logo_path)
             w, h = img.size
@@ -210,27 +223,5 @@ for token in new_tokens:
         except Exception as e:
             fail(f"{label}: Cannot read logo image: {e}")
 
-    # Logo file must exist in assets/ — logoURI is auto-generated on merge
-    logo_path = f"assets/{addr}.png"
-    GITHUB_BASE = "https://raw.githubusercontent.com/pixelgenius-id/vex-evm-tokenlist/main/assets/"
-    logo_uri = token.get("logoURI", "")
-    if not os.path.exists(logo_path):
-        fail(f"{label}: Logo file not found at `{logo_path}` — please upload your logo as `assets/{addr}.png` (256×256 PNG, max 50KB)")
-    else:
-        ok(f"{label}: Logo file `{logo_path}` exists")
-        if logo_uri and not logo_uri.startswith(GITHUB_BASE):
-            fail(f"{label}: `logoURI` contains an external link — remove it from your entry.\n"
-                 f"  External links (IPFS, HTTP, etc.) are not allowed.\n"
-                 f"  Just upload `assets/{addr}.png` and leave `logoURI` out — it will be set automatically.")
-
 # ── 3. Write result ────────────────────────────────────────────────────────────
-def write_result():
-    summary = "### ✅ All checks passed — ready for review" if not failed else \
-              "### ❌ Validation failed — please fix the issues above"
-    output = "\n".join(results) + f"\n\n---\n{summary}"
-    print(output)
-    with open("/tmp/validation_result.txt", "w") as f:
-        f.write(output)
-    return 1 if failed else 0
-
 sys.exit(write_result())
